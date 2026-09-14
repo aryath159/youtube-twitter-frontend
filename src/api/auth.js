@@ -37,6 +37,44 @@ export const getCurrentUser = ()=>{
     return api.get("/users/current-user") ;
 } ;
 
+export const UpdateAccDetails = (data)=>{
+    return api.post("/users/update-account" , data) ;
+};
 
+export const updateAvatar = (file) =>{
+    const formdata = new FormData() ;
+    formdata.append("avatar" ,file) ;
 
+    return api.patch("/users/avatar" , formdata , 
+        {
+            headers : {
+                "Content-Type" : "multipart/formdata"
+            }
+        }
+     )
+};
 
+export const UpdateCoverImage = (file)=>{
+    const formdata = new FormData() ;
+
+    formdata.append("coverImage" , file) ;
+
+    return api.patch("/users/cover-image" , formdata , 
+        {
+            headers :{ "Content-Type" : "multipart/formdata"}
+        }
+    )
+};
+
+export const changePassword = (data) =>{
+
+    return api.post("/users/change-password" , data) ;
+};
+
+export const GetProfile = (name)=>{
+    return api.get(`/users/c/:${name}`);
+} ;
+
+export const getWatchHistory = ()=>{
+    return api.get("/users/history") ;
+}

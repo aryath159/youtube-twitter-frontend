@@ -1,43 +1,47 @@
 import { createContext, useEffect, useState } from "react";
-import { getCurrentUser, loginUser } from "../api/auth";
+import { getCurrentUser, loginUser, logoutUser, registerUser } from "../api/auth";
 
-const AuthContext = createContext(null) ;
+export const AuthContext = createContext(null);
 
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-export function AuthProvider({children}){
+  useEffect(() => {
+    getCurrentUser()
+      .then((res) => {
+        setUser(res.data.data);
+      })
+      .catch((er) => {
+        setUser(null);
+        setError(er);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-    const [user , setUser] = useState(null) ;
-    const [loading , setLoading ] = useState(true);
-    const [error , setError ] = useState(null) ;
+  const login = async (credentials) => {
+    const res = await loginUser(credentials);
 
-    useEffect(()=>{
+    setUser(res.data.data.user);
 
-        getCurrentUser()
-            .then((res) =>{
-                setUser(res.data.data); 
-            })
-            .catch((er) => {
-                setUser(null)
-                setError(er) ;
-            }) 
-            .finally( () => setLoading(false)) ;
+    return res.data.data.user;
+  };
 
-    }, []) ;
+  const register = async (data)=>{
 
+    const resp = await registerUser(data) ;
+    // registration does not login them send them to login 
+  }
 
-    const login = async (credentials) =>{
+  const logout = async () =>{
+    await logoutUser() ;
+    setUser(null) ;
+  }
 
-        const res = await loginUser(credentials) ;
-
-        setUser(res.data.data.user) ;
-
-        return res.data.data.user ; 
-    }
-
-    return (
-        <AuthContext value={{user, setUser, loading , login , error , setError }}>
-            {children}
-        </AuthContext>
-    )
-
+  return (
+    <AuthContext value={{ user, setUser, loading, login, error, setError , register , logout }}>
+      {children}
+    </AuthContext>
+  );
 }
