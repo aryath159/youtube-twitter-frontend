@@ -89,7 +89,7 @@ function VideoCard({ video }) {
 
             //thumbnail
                 <img
-                    src={video.thumbanail.url}
+                    src={video.thumbanail?.url}
                     alt={video.title}
                     className='
                  h-full
@@ -128,7 +128,7 @@ function VideoCard({ video }) {
 
 
                 <img
-                    src={owner.avatar}
+                    src={owner.avatar?.url}
                     alt=""
                     className='
                     mt-0.5

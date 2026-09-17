@@ -158,4 +158,4 @@ export default Navbar;
 // And importantly, what appears on the right depends on whether the user is logged in or not.
 
 
-// handle seach function - how it is related to home .. (check this )
+// handle search function - how it is related to home .. (check this )
