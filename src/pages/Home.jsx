@@ -59,18 +59,23 @@ function Home() {
   } , [query]) ;
 
   return (
-    <main>
+    <main className="mx-auto max-w-6xl px-4 py-6">
 
       {/*  page title */}
-      <h1></h1>
+      <h1 className="mb-5 text-2xl font-medium text-ink">
+        {query
+          ? `Search results for "${query}"`
+          : "Recommended"
+        }
+      </h1>
 
       {/* loading */}
-      {loading && <p>Loading videos</p>}
+      {loading && <p className="text-sm text-muted">Loading videos</p>}
 
 
       {/* no videos */}
       {!loading && videos.length ===  0 && (
-        <p>{query ? `no videos found for ${query}` : "No videos yet"}</p>
+        <p className="text-sm text-muted">{query ? `no videos found for ${query}` : "No videos yet"}</p>
       )}
 
       {/* video grid */}

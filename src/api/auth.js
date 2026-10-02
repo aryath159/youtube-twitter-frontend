@@ -72,7 +72,7 @@ export const changePassword = (data) =>{
 };
 
 export const GetProfile = (name)=>{
-    return api.get(`/users/c/:${name}`);
+    return api.get(`/users/c/${name}`);
 } ;
 
 export const getWatchHistory = ()=>{
