@@ -1,54 +1,55 @@
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { NavLink } from "react-router-dom";
 
-import { useContext } from 'react'
-import { AuthContext } from '../context/AuthContext'
-import { Link } from 'react-router-dom'
-
+const linkClass = ({ isActive }) =>
+  `sidebar-link${isActive ? " active" : ""}`;
 
 function Sidebar() {
+  const { user } = useContext(AuthContext);
 
-    const {user} = useContext(AuthContext)
   return (
-        <aside className='sidebar'>
-            <nav>
-                    <Link to="/"  className="sidebar-link">
-                    Home
-                    </Link>
+    <aside className="sidebar">
+      <nav>
+        <NavLink to="/" end className={linkClass}>
+          Home
+        </NavLink>
 
-                    <Link to="/history"  className="sidebar-link">
-                    History
-                    </Link>
+        {/* these pages need a login, so only show them to logged in users */}
+        {user && (
+          <>
+            <NavLink to="/history" className={linkClass}>
+              History
+            </NavLink>
 
-                    <Link to="/liked"  className="sidebar-link">
-                    Liked Videos
-                    </Link>
+            <NavLink to="/liked" className={linkClass}>
+              Liked Videos
+            </NavLink>
 
-                    <div className="sidebar-section-title">
-                        Creator
-                    </div>
+            <div className="sidebar-section-title">Creator</div>
 
-                    <Link to="/upload"  className="sidebar-link">
-                    Upload
-                    </Link>
+            <NavLink to="/upload" className={linkClass}>
+              Upload
+            </NavLink>
 
-                    <Link  to="/dashboard"  className="sidebar-link">
-                    Dashboard
-                    </Link>
+            <NavLink to="/dashboard" className={linkClass}>
+              Dashboard
+            </NavLink>
 
-                    <Link to={`/channel/${user?.username}`}  className="sidebar-link">
-                    Channel
-                    </Link>
-                   
-                    <div  className="sidebar-section-title">
-                        Account
-                    </div>
+            <NavLink to={`/channel/${user.username}`} className={linkClass}>
+              Channel
+            </NavLink>
 
-                    <Link to="/profile" className="sidebar-link">
-                    Profile
-                    </Link>
+            <div className="sidebar-section-title">Account</div>
 
-            </nav>
-        </aside>
-  )
+            <NavLink to="/profile" className={linkClass}>
+              Profile
+            </NavLink>
+          </>
+        )}
+      </nav>
+    </aside>
+  );
 }
 
-export default Sidebar
+export default Sidebar;
