@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // on first load: is there a valid login cookie?
   useEffect(() => {
     getCurrentUser()
       .then((res) => {
@@ -28,20 +29,26 @@ export function AuthProvider({ children }) {
     return res.data.data.user;
   };
 
-  const register = async (data)=>{
+  const register = async (data) => {
+    // registration does not log them in - the Register page sends them to /login
+    const res = await registerUser(data);
+    return res.data.data;
+  };
 
-    const resp = await registerUser(data) ;
-    // registration does not login them send them to login 
-  }
-
-  const logout = async () =>{
-    await logoutUser() ;
-    setUser(null) ;
-  }
+  const logout = async () => {
+    try {
+      await logoutUser();
+    } finally {
+      // even if the request fails, the UI should treat the user as logged out
+      setUser(null);
+    }
+  };
 
   return (
-    <AuthContext value={{ user, setUser, loading, login, error, setError , register , logout }}>
+    <AuthContext.Provider
+      value={{ user, setUser, loading, login, error, setError, register, logout }}
+    >
       {children}
-    </AuthContext>
+    </AuthContext.Provider>
   );
 }
