@@ -3,130 +3,70 @@
 
 import axios from "axios";
 
+// the Vite dev server proxies "/api" to the Express backend (see vite.config.js)
 const api_base_url = "/api/v1";
 
-// axios.create crates the axios client
+// axios.create creates the axios client
 const api = axios.create({
   baseURL: api_base_url, // Prepended to every request URL
-  withCredentials: true, // adds cookie to every outgoing request
+  withCredentials: true, // sends the httpOnly login cookies with every request
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Runs before every outgoing request.
-// but we dont need this for adding accesstoken
-// becaue cookies are http only so js cant read it
-// with credentials will handle it
-// api.interceptors.request.use((config) => {
+// Cookie-based JWT:
+// withCredentials -> browser sends the accessToken cookie -> verifyJWT reads it.
+// js can't read httpOnly cookies, so there is no request interceptor here.
 
-// })
+// urls where a 401 simply means "wrong credentials" - never try to refresh for these
+const NO_REFRESH_URLS = [
+  "/users/login",
+  "/users/register",
+  "/users/refresh-token",
+];
 
-// Cookie-based JWT
-//       ↓
-// withCredentials: true
-//       ↓
-// Browser sends accessToken cookie
-//       ↓
-// verifyJWT reads req.cookies.accessToken
+// if several requests fail at the same moment they must share ONE refresh call,
+// because the backend rotates the refresh token (a second call with the old token fails)
+let refreshPromise = null;
 
 // "Whenever api receives a response, run this code first."
+api.interceptors.response.use(
+  // 2xx response: nothing to do, let it pass
+  (response) => response,
 
-// Backend response
-//        ↓
-//  ┌─────┴─────┐
-//  ↓           ↓
-// Success     Error
-//  ↓           ↓
-// return      handle 401
-// response
-api.interceptor.response.use(() => {
-  // its 2xx resp , so no need to do anything let it pass
-  ((response) => {
-    return response;
-  },
-    async (error) => {
-      // suppose we made api.get("/users/profile");
-      // and it failed at the backend and it send 4xx
-      const originalRequest = error.config; // GET /users/profile
+  // error response
+  async (error) => {
+    const originalRequest = error.config;
 
-      // the reason we save it because we may want to retry it
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest._retry || // avoid an infinite loop
+      NO_REFRESH_URLS.some((url) => originalRequest.url?.includes(url))
+    ) {
+      return Promise.reject(error);
+    }
 
-      // check for 401 - unauthorized
+    originalRequest._retry = true;
 
-      // only handle 401 errors
-      if (
-        error.response?.status !== 401 ||
-        originalRequest._retry || // to avoid infinite loop
-        originalRequest.url?.includes("/users/refresh-token") // if this was our original req , no need to try again
-      ) {
-        return Promise.reject(error);
+    try {
+      if (!refreshPromise) {
+        refreshPromise = api.post("/users/refresh-token").finally(() => {
+          refreshPromise = null;
+        });
       }
 
-      originalRequest._retry = true;
+      // the backend sets new cookies...
+      await refreshPromise;
 
-      try {
-        await api.post("/users/refresh-token");
-        // the backend will now send a new access token
+      // ...so we can retry the original request
+      return api(originalRequest);
+    } catch {
+      // refresh token invalid / expired -> the user really is logged out
+      return Promise.reject(error);
+    }
+  }
+);
 
-        // retry the original query
-        return api(originalRequest);
-      } catch (refreshError) {
-        // refresh token is invalid
-
-        return Promise.reject(refreshError);
-      }
-    });
-});
-
-// LOGIN
-//   │
-//   ▼
-// Backend generates
-// accessToken + refreshToken
-//   │
-//   ├──────────────┐
-//   ▼              ▼
-// Browser         Database
-// cookies
-// (both token)   (refreshToken)
-//   │
-//   │
-//   ▼
-// Normal API request
-//   │
-//   ▼
-// accessToken valid?
-//   │
-//   ├── YES → request succeeds
-//   │
-//   └── NO → 401
-//             │
-//             ▼
-//        /refresh-token
-//             │
-//             ▼
-//     Browser automatically
-//     sends refreshToken cookie
-//             │
-//             ▼
-//        Backend verifies
-//             │
-//             ├── JWT valid?
-//             │
-//             ├── User exists?
-//             │
-//             └── Token == DB token?
-//             │
-//             ▼
-//        Generate NEW tokens
-//             │
-//             ▼
-//        Update DB refreshToken
-//             │
-//             ▼
-//        Set NEW cookies
-//             │
-//             ▼
-//        Retry original request
-                                        
+export default api;
