@@ -1,191 +1,106 @@
-import React from 'react'
-import { useEffect } from 'react';
-import { useState } from 'react'
-import { getAllVideos } from '../api/video.js';
-import VideoCard from "../components/VideoCard.jsx"
-//Used to read the search query from the URL.
-import {useSearchParams } from 'react-router-dom' ;
+import { useEffect, useState } from "react";
+import { getAllVideos } from "../api/video.js";
+import VideoGrid from "../components/VideoGrid.jsx";
+// Used to read the search query from the URL.
+import { useSearchParams } from "react-router-dom";
+
+const PAGE_SIZE = 12;
 
 function Home() {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get("query") || "";
 
-  const [searchParams] = useSearchParams() ;
-  const query = searchParams.get("query") || "" ;
+  //   URL /?query=node  ->  searchParams.get("query")  ->  "node"
 
-//   URL
-//  ↓
-// /?query=node
-//  ↓
-// searchParams.get("query")
-//  ↓
-// "node"
-//  ↓
-// query
+  // videos received from the backend
+  const [videos, setVideos] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
 
-  // store videos received from backend 
-  const [videos , setVideos] = useState([]) ;
+  // "Loading videos..." while the first request is running
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Used to show "Loading videos..."
-  // while API request is running
-  const [ loading , setloding] = useState(true) ;
+  // run this every time the search text changes
+  useEffect(() => {
+    // protects against an older, slower request overwriting a newer one
+    let cancelled = false;
 
-// run this code every time the query changes 
-// this effect is for fetching videos 
-  useEffect(()=>{
-    setloding(true) ;
+    setLoading(true);
 
-    getAllVideos({query})
-    .then((res) => {
-        // If API uses pagination,
-        // videos will be inside "docs".
-        //
-        // Otherwise use res.data.data directly.
+    getAllVideos({ query, page: 1, limit: PAGE_SIZE })
+      .then((res) => {
+        if (cancelled) return;
 
-        setVideos(
-          res.data.data.docs || res.data.data 
-        ) ;
+        // the backend paginates: { docs: [...], hasNextPage, page, ... }
+        const data = res.data.data;
+        setVideos(data.docs || []);
+        setHasNextPage(Boolean(data.hasNextPage));
+        setPage(1);
+      })
+      .catch(() => {
+        // if the request fails show an empty list
+        if (cancelled) return;
+        setVideos([]);
+        setHasNextPage(false);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    })
-    .catch(() =>{
-      // if req fails show empty video list
-      
-      setVideos([]) ;
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
 
-    })
-    .finally(() =>{
-      setloding(false) ;
-    })
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
 
+    try {
+      const nextPage = page + 1;
+      const res = await getAllVideos({ query, page: nextPage, limit: PAGE_SIZE });
+      const data = res.data.data;
 
-  } , [query]) ;
+      setVideos((current) => [...current, ...(data.docs || [])]);
+      setHasNextPage(Boolean(data.hasNextPage));
+      setPage(nextPage);
+    } catch (error) {
+      console.log("could not load more videos", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
-
-      {/*  page title */}
+      {/* page title */}
       <h1 className="mb-5 text-2xl font-medium text-ink">
-        {query
-          ? `Search results for "${query}"`
-          : "Recommended"
-        }
+        {query ? `Search results for "${query}"` : "Recommended"}
       </h1>
 
-      {/* loading */}
-      {loading && <p className="text-sm text-muted">Loading videos</p>}
+      {loading && <p className="text-sm text-muted">Loading videos...</p>}
 
-
-      {/* no videos */}
-      {!loading && videos.length ===  0 && (
-        <p className="text-sm text-muted">{query ? `no videos found for ${query}` : "No videos yet"}</p>
+      {!loading && (
+        <VideoGrid
+          videos={videos}
+          emptyMessage={query ? `No videos found for "${query}"` : "No videos yet"}
+        />
       )}
 
-      {/* video grid */}
-      {!loading && videos.length > 0 && (
-        <div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
-
-          {
-            videos.map((video) => (
-              <VideoCard
-              key={video._id}
-              video={video}
-              />
-            ))
-          }
+      {!loading && hasNextPage && (
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="btn btn-outline"
+          >
+            {loadingMore ? "Loading..." : "Load more"}
+          </button>
         </div>
       )}
-
-
-
-
-
     </main>
-   
-  )
+  );
 }
 
-export default Home
-
-
-/*
-5. Fetching videos
-
-This is the main part:
-
-useEffect(() => {
-  setLoading(true);
-
-  getAllVideos({ query })
-    .then((res) => setVideos(res.data.data.docs || res.data.data))
-    .catch(() => setVideos([]))
-    .finally(() => setLoading(false));
-
-}, [query]);
-
-The important part is:
-
-[query]
-
-This means:
-
-Run this effect whenever query changes.
-
-So:
-
-Initial page
-Home loads
-   ↓
-query = ""
-   ↓
-getAllVideos({ query })
-   ↓
-get all videos
-User searches "node"
-User searches node
-       ↓
-URL becomes /?query=node
-       ↓
-query becomes "node"
-       ↓
-useEffect runs again
-       ↓
-getAllVideos({ query: "node" })
-       ↓
-backend returns matching videos
-
-That's the correct overall architecture.
-*/
-
-
-/*
-6. Handling the API response
-
-You have:
-
-.then((res) => setVideos(res.data.data.docs || res.data.data))
-
-This is trying to support two possible API response structures.
-
-If you're using aggregation pagination
-
-You might get:
-
-res.data.data.docs
-
-like:
-
-{
-    docs: [
-        video1,
-        video2,
-        video3
-    ],
-    totalDocs: 3,
-    limit: 10,
-    page: 1
-}
-
-So:
-
-res.data.data.docs
-
-gives the actual videos.
-*/
+export default Home;
